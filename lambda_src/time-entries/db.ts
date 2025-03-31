@@ -168,6 +168,7 @@ export async function runQuery(
             account: item.account.S,
             id: parseInt(item.id.N!!),
             start: parseInt(item.start.N!!),
+            ...(item.stop && { stop: parseInt(item.stop.N!!) }),
             tags: item.tags.L!!.map((tag) => tag.S),
             duration: item.duration?.N ? parseInt(item.duration.N) : undefined,
           } as TimeEntry)
