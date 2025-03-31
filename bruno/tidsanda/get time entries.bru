@@ -1,0 +1,16 @@
+meta {
+  name: get time entries
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host}}/api/time?from=2025-01-01&to=2025-04-31
+  body: none
+  auth: inherit
+}
+
+params:query {
+  from: 2025-01-01
+  to: 2025-04-31
+}

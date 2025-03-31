@@ -1,0 +1,17 @@
+meta {
+  name: get time entry
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{host}}/api/time/2
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "tags": ["snark", "unken"]
+  }
+}

@@ -1,0 +1,11 @@
+meta {
+  name: get active time entry
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{host}}/api/time/active
+  body: none
+  auth: inherit
+}

@@ -1,0 +1,17 @@
+meta {
+  name: start timer
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{host}}/api/time/start
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "tags": ["heppa"]
+  }
+}

@@ -20,11 +20,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "devDependencies": {
-    "aws-sdk": "^2.1024.0"
+    "@aws-sdk/client-dynamodb": "^3.777.0",
+    "aws-sdk": "^2.1024.0",
+    "esbuild": "^0.25.1"
   },
   "scripts": {
     "start": "nodemon",
-    "server": "NODE_ENV=production ts-node src/server.ts"
+    "server": "NODE_ENV=production ts-node src/server.ts",
+    "build": "rm -rf dist && mkdir dist && esbuild lambda_src/index.ts --bundle --platform=node --outfile=dist/index.js && cd dist && zip index.zip index.js"
   },
   "author": "",
   "license": "ISC",

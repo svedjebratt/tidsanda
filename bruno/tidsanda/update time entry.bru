@@ -1,0 +1,17 @@
+meta {
+  name: update time entry
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{host}}/api/time/1
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "tags": ["snark", "unken"]
+  }
+}
