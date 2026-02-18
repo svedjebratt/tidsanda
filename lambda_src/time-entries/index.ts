@@ -2,14 +2,17 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { Account, TimeEntry, APIEvent, APIResponse } from '../types';
 import {
   addDuration,
+  clearPomodoroState,
   deleteTimeEntry,
+  getActiveTimeEntry,
   getAllTimeEntries,
   getLatestTags,
   getNextId,
+  getPomodoroState,
   getTimeEntryByTimeId,
+  savePomodoroState,
   saveTimeEntry,
 } from './db';
-import { getActiveTimeEntry } from './db';
 import { parseRoute } from '../parseRoute';
 
 const dynamo = new DynamoDBClient();
@@ -31,8 +34,59 @@ export const handler = async (route: string, account: Account | null, event: API
 
   const routeParser = parseRoute(route);
 
+  const toPomodoroResponse = (state: { startedAt: number; durationMs: number; endsAt: number; updatedAt: number } | null) => {
+    if (!state) {
+      return {
+        status: 'idle',
+        remainingMs: 0,
+      };
+    }
+
+    return {
+      status: 'running',
+      startedAt: state.startedAt,
+      durationMs: state.durationMs,
+      endsAt: state.endsAt,
+      updatedAt: state.updatedAt,
+      remainingMs: Math.max(0, state.endsAt - Date.now()),
+    };
+  };
+
   try {
-    if (routeParser.parse(/^POST \/api\/time\/start$/)) {
+    if (routeParser.parse(/^POST \/api\/time\/pomodoro\/start$/)) {
+      const requestJSON = event.body ? JSON.parse(event.body) : {};
+      const requestedDurationMinutes = requestJSON?.durationMinutes;
+      const defaultDurationMinutes = 25;
+      const durationMinutes = requestedDurationMinutes ?? defaultDurationMinutes;
+
+      if (
+        typeof durationMinutes !== 'number' ||
+        !Number.isFinite(durationMinutes) ||
+        durationMinutes <= 0 ||
+        durationMinutes > 180
+      ) {
+        statusCode = 400;
+        body = { error: 'invalid_duration' };
+      } else {
+        const now = Date.now();
+        const durationMs = Math.round(durationMinutes * 60 * 1000);
+        const state = {
+          status: 'running' as const,
+          startedAt: now,
+          durationMs,
+          endsAt: now + durationMs,
+          updatedAt: now,
+        };
+        await savePomodoroState(account.apiKey, state);
+        body = toPomodoroResponse(state);
+      }
+    } else if (routeParser.parse(/^GET \/api\/time\/pomodoro$/)) {
+      const state = await getPomodoroState(account.apiKey);
+      body = toPomodoroResponse(state);
+    } else if (routeParser.parse(/^POST \/api\/time\/pomodoro\/stop$/)) {
+      await clearPomodoroState(account.apiKey);
+      body = toPomodoroResponse(null);
+    } else if (routeParser.parse(/^POST \/api\/time\/start$/)) {
       const active = await getActiveTimeEntry(account.apiKey);
       if (active) {
         statusCode = 400;

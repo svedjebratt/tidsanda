@@ -12,6 +12,14 @@ export interface TimeEntry {
   duration?: number;
 }
 
+export interface PomodoroState {
+  status: 'running';
+  startedAt: number;
+  durationMs: number;
+  endsAt: number;
+  updatedAt: number;
+}
+
 export interface APIResponse {
   statusCode: number;
   body: string;
