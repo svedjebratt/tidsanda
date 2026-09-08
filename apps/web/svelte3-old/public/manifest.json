@@ -1,0 +1,38 @@
+{
+  "short_name": "Tidsanda",
+  "name": "Tidsanda",
+  "icons": [
+    {
+      "src": "/logos/tidsanda-logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "40x40"
+    },
+    {
+      "src": "/logos/tidsanda-logo-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "/logos/tidsanda-logo-1x.png",
+      "type": "image/png",
+      "sizes": "40x40"
+    },
+    {
+      "src": "/logos/tidsanda-logo-2x.png",
+      "type": "image/png",
+      "sizes": "80x80"
+    },
+    {
+      "src": "/logos/tidsanda-logo-3x.png",
+      "type": "image/png",
+      "sizes": "120x120"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#FFFFFF",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#000000",
+  "shortcuts": [],
+  "description": "Time tracking for the minimalistic appreciator"
+}

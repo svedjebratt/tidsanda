@@ -1,0 +1,11 @@
+{
+  "name": "@tidsanda/api",
+  "private": true,
+  "description": "AWS Lambda API for Tidsanda",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.777.0"
+  },
+  "scripts": {
+    "build": "vp pack && mv dist/index.cjs dist/index.js && cd dist && zip -r index.zip . -x index.zip"
+  }
+}

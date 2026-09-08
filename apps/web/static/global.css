@@ -1,0 +1,135 @@
+@import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.2/font/bootstrap-icons.css');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&display=swap');
+
+:root {
+  --col-black: #000;
+  --col-grey-90: #212529;
+  --col-grey-80: #343a40;
+  --col-grey-70: #495057;
+  --col-grey-60: #6c757d;
+  --col-grey-50: #adb5bd;
+  --col-grey-40: #ced4da;
+  --col-grey-30: #dee2e6;
+  --col-grey-20: #e9ecef;
+  --col-grey-10: #f8f9fa;
+  --col-white: #fff;
+  --space-0: 0;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+}
+
+html,
+body {
+  font-family: 'Open sans', sans-serif;
+  font-size: 16px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: 'Open sans', sans-serif;
+}
+
+/*
+html, body {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+
+body {
+	color: #333;
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+a {
+	color: rgb(0,100,200);
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:visited {
+	color: rgb(0,80,160);
+}
+
+label {
+	display: block;
+}
+
+input, button, select, textarea {
+	font-family: inherit;
+	font-size: inherit;
+	padding: 0.4em;
+	margin: 0;
+	box-sizing: border-box;
+	border: 1px solid #ccc;
+	border-radius: 2px;
+}
+
+input:disabled {
+	color: #ccc;
+}
+
+button {
+	color: #333;
+	background-color: #f4f4f4;
+	outline: none;
+}
+
+button:disabled {
+	color: #999;
+}
+
+button:not(:disabled):active {
+	background-color: #ddd;
+}
+
+button:focus {
+	border-color: #666;
+}
+*/
+
+button {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+main {
+  flex-direction: column;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 1rem;
+}
+
+main > * {
+  width: 100%;
+  padding: 0 1rem;
+}
+
+@media screen and (min-width: 400px) {
+  main > * {
+    width: 400px;
+  }
+}
+
+.form-control {
+  width: 100%;
+  border: 1px solid var(--col-grey-60);
+  padding: var(--space-3) var(--space-4);
+}

@@ -1,9 +1,0 @@
-{
-  "verbose": true,
-  "ext": "ts",
-  "watch": [
-    "src/**/*"
-  ],
-  "legacyWatch": true,
-  "exec": "ts-node src/server.ts"
-}

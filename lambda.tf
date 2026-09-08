@@ -62,12 +62,12 @@ resource "aws_iam_role_policy" "dynamodb_policy" {
 
 # Lambda function
 resource "aws_lambda_function" "function" {
-  filename         = "dist/index.zip"
-  source_code_hash = filebase64sha256("dist/index.zip")
+  filename         = "${path.module}/apps/api/dist/index.zip"
+  source_code_hash = filebase64sha256("${path.module}/apps/api/dist/index.zip")
   function_name    = "tidsanda-api-v2"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs20.x" # Adjust this based on your Node.js version
+  runtime          = "nodejs22.x"
   timeout          = 30
   memory_size      = 128
   publish          = true
@@ -102,4 +102,4 @@ resource "aws_lambda_function_url" "function" {
 resource "aws_cloudwatch_log_group" "lambda_logs" {
   name              = "/aws/lambda/tidsanda-api-v2"
   retention_in_days = 14
-} 
+}
