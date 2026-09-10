@@ -67,3 +67,44 @@ test('a user can select and remove an existing timer tag', async ({ page }) => {
   await expect(tagInput).toHaveAttribute('placeholder', 'Set tags');
   expect(errors).toEqual([]);
 });
+
+test('space starts and stops the timer while typing and the old shortcut do not', async ({ page }) => {
+  const commands: string[] = [];
+  const activeTimer = {
+    account: 'test-account',
+    id: 42,
+    start: Date.now(),
+    tags: [],
+  };
+
+  await page.unroute('**/api/time**');
+  await page.route('**/api/time**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === 'POST') {
+      commands.push(url.pathname);
+      await route.fulfill({ json: activeTimer });
+    } else if (url.pathname.endsWith('/time/tags')) {
+      await route.fulfill({ json: { tags: [] } });
+    } else if (url.pathname.endsWith('/time/active')) {
+      await route.fulfill({ status: 404, json: { error: 'No active timer' } });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+
+  await page.goto('/timer');
+  const tagInput = page.locator('#TagInput');
+  await expect(tagInput).toBeEnabled();
+  await tagInput.press('Space');
+  await tagInput.press('s');
+  expect(commands).toEqual([]);
+
+  await tagInput.evaluate((input: HTMLInputElement) => input.blur());
+  await page.keyboard.press('s');
+  expect(commands).toEqual([]);
+  await page.keyboard.press('Space');
+  await expect.poll(() => commands).toEqual(['/api/time/start']);
+  await page.keyboard.press('Space');
+  await expect.poll(() => commands).toEqual(['/api/time/start', '/api/time/stop']);
+});

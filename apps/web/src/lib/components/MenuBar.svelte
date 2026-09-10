@@ -1,32 +1,40 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { shouldIgnoreShortcut } from '$lib/keyboard';
 
-	let { active = 'timer' } = $props<{ active?: 'timer' | 'logs' | 'user' }>();
+	let { active = 'timer' } = $props<{ active?: 'timer' | 'pomodoro' | 'logs' | 'user' }>();
 
 	onMount(() => {
 		function listener(e: KeyboardEvent): void {
-			if (document.activeElement?.tagName === 'INPUT') {
+			if (shouldIgnoreShortcut(e)) {
 				return;
 			}
-			switch (e.key) {
+			switch (e.key.toLowerCase()) {
 				case 't':
+					e.preventDefault();
 					goto('/timer');
 					break;
+				case 'p':
+					e.preventDefault();
+					goto('/pomodoro');
+					break;
 				case 'l':
+					e.preventDefault();
 					goto('/log/day/0');
 					break;
 			}
 		}
-		document.addEventListener('keypress', listener);
+		document.addEventListener('keydown', listener);
 		return () => {
-			document.removeEventListener('keypress', listener);
+			document.removeEventListener('keydown', listener);
 		};
 	});
 </script>
 
 <nav>
 	<a href="/timer" class={active === 'timer' ? 'active' : ''}>Timer</a>
+	<a href="/pomodoro" class={active === 'pomodoro' ? 'active' : ''}>Pomodoro</a>
 	<a href="/log/day/0" class={active === 'logs' ? 'active' : ''}>History</a>
 	<a href="/user" class={active === 'user' ? 'active' : ''} aria-label="Account"
 		><i class="bi bi-person"></i></a

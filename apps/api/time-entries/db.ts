@@ -2,13 +2,11 @@ import {
   AttributeValue,
   DeleteItemCommand,
   DynamoDBClient,
-  GetItemCommand,
   PutItemCommand,
   QueryCommand,
   QueryOutput,
-  UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
-import type { PomodoroState, TimeEntry } from '../types';
+import type { TimeEntry } from '../types';
 
 const dynamo = new DynamoDBClient();
 
@@ -152,66 +150,6 @@ export async function getLatestTags(account: string) {
     }, new Set<string>());
 
   return Array.from(latestTags);
-}
-
-export async function getPomodoroState(account: string): Promise<PomodoroState | null> {
-  const result = await dynamo.send(
-    new GetItemCommand({
-      TableName: 'accounts',
-      Key: {
-        apiKey: { S: account },
-      },
-      ProjectionExpression: 'pomodoro',
-    }),
-  );
-
-  const pomodoro = result.Item?.pomodoro?.M;
-  if (!pomodoro?.status?.S || !pomodoro?.startedAt?.N || !pomodoro?.durationMs?.N || !pomodoro?.endsAt?.N) {
-    return null;
-  }
-
-  return {
-    status: 'running',
-    startedAt: Number(pomodoro.startedAt.N),
-    durationMs: Number(pomodoro.durationMs.N),
-    endsAt: Number(pomodoro.endsAt.N),
-    updatedAt: Number(pomodoro.updatedAt?.N || pomodoro.startedAt.N),
-  };
-}
-
-export async function savePomodoroState(account: string, state: PomodoroState) {
-  return dynamo.send(
-    new UpdateItemCommand({
-      TableName: 'accounts',
-      Key: {
-        apiKey: { S: account },
-      },
-      UpdateExpression: 'SET pomodoro = :pomodoro',
-      ExpressionAttributeValues: {
-        ':pomodoro': {
-          M: {
-            status: { S: state.status },
-            startedAt: { N: state.startedAt.toString() },
-            durationMs: { N: state.durationMs.toString() },
-            endsAt: { N: state.endsAt.toString() },
-            updatedAt: { N: state.updatedAt.toString() },
-          },
-        },
-      },
-    }),
-  );
-}
-
-export async function clearPomodoroState(account: string) {
-  return dynamo.send(
-    new UpdateItemCommand({
-      TableName: 'accounts',
-      Key: {
-        apiKey: { S: account },
-      },
-      UpdateExpression: 'REMOVE pomodoro',
-    }),
-  );
 }
 
 export async function runQuery(

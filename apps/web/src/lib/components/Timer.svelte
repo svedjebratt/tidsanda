@@ -14,6 +14,7 @@
 		updateTimeEntry
 	} from '$lib/api/TimeApi';
 	import { current, formatSecs, getDates } from '$lib/stores/timerStore';
+	import { shouldIgnoreShortcut } from '$lib/keyboard';
 	import type { TimeEntry } from '$lib/types';
 
 	let tags = $state<string[]>([]);
@@ -87,20 +88,21 @@
 	}
 
 	onMount(() => {
-		function keyUp(e: KeyboardEvent) {
-			if (document.activeElement?.tagName === 'INPUT') {
+		function keyDown(e: KeyboardEvent) {
+			if (shouldIgnoreShortcut(e, true)) {
 				return;
 			}
 
-			if (e.shiftKey && $current) {
-				if (e.key === 'ArrowUp') {
+			if (e.shiftKey) {
+				if (e.key === 'ArrowUp' && $current) {
 					updateStart(true);
-				} else if (e.key === 'ArrowDown') {
+				} else if (e.key === 'ArrowDown' && $current) {
 					updateStart(false);
 				}
 			} else {
 				switch (e.key) {
-					case 's':
+					case ' ':
+						e.preventDefault();
 						if ($current) {
 							stopTimer();
 						} else {
@@ -114,10 +116,10 @@
 			}
 		}
 
-		document.addEventListener('keyup', keyUp);
+		document.addEventListener('keydown', keyDown);
 
 		return () => {
-			document.removeEventListener('keyup', keyUp);
+			document.removeEventListener('keydown', keyDown);
 		};
 	});
 

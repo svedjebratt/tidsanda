@@ -25,8 +25,9 @@
 
 		<p>
 			Key bindings: <br />
-			s: Start/Stop timer <br />
+			Space: Start/Stop timer or control Pomodoro <br />
 			t: Timer <br />
+			p: Pomodoro <br />
 			l: Logs <br />
 			g: Edit tags<br />
 			Shift + UP: Increase start time <br />
