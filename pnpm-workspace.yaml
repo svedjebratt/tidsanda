@@ -7,12 +7,10 @@ overrides:
   vite@*: npm:@voidzero-dev/vite-plus-core@0.3.0
   vitest@*: 4.1.11
 
-onlyBuiltDependencies:
-  - esbuild
-
 peerDependencyRules:
   allowedVersions:
     vite: 0.3.0
 
 allowBuilds:
   '@parcel/watcher': true
+  esbuild: true
