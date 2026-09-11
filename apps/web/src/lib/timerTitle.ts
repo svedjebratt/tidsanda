@@ -15,11 +15,11 @@ export function getTimerTitle(state: PomodoroState, regularTimerRunning: boolean
   if (!isFreshPomodoro(state)) {
     const phase = state.phase === 'focus' ? 'Focus' : 'Break';
     const status = state.status === 'waiting' ? 'Ready' : state.status === 'running' ? 'Running' : 'Paused';
-    return `${formatMilliseconds(state.remainingMs)} · ${phase} · ${status} | Tidsanda`;
+    return `${formatMilliseconds(state.remainingMs)} · ${phase} · ${status}`;
   }
 
   if (regularTimerRunning) {
-    return `${formatSeconds(elapsedSeconds)} · Timer · Running | Tidsanda`;
+    return `${formatSeconds(elapsedSeconds)} · Timer · Running`;
   }
 
   return 'Tidsanda';

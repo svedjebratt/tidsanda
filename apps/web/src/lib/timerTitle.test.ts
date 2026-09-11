@@ -8,7 +8,7 @@ describe('timer title', () => {
   });
 
   it('shows an active regular timer before a Pomodoro cycle starts', () => {
-    expect(getTimerTitle(createInitialPomodoroState(), true, 42 * 60 + 8)).toBe('42:08 · Timer · Running | Tidsanda');
+    expect(getTimerTitle(createInitialPomodoroState(), true, 42 * 60 + 8)).toBe('42:08 · Timer · Running');
   });
 
   it('gives a running or paused Pomodoro priority over the regular timer', () => {
@@ -19,9 +19,9 @@ describe('timer title', () => {
       endsAt: Date.now() + 24 * 60_000 + 32_000,
     };
 
-    expect(getTimerTitle(running, true, 42 * 60 + 8)).toBe('24:32 · Focus · Running | Tidsanda');
+    expect(getTimerTitle(running, true, 42 * 60 + 8)).toBe('24:32 · Focus · Running');
     expect(getTimerTitle({ ...running, status: 'paused', endsAt: null }, true, 42 * 60 + 8)).toBe(
-      '24:32 · Focus · Paused | Tidsanda',
+      '24:32 · Focus · Paused',
     );
   });
 
@@ -32,12 +32,10 @@ describe('timer title', () => {
       remainingMs: 5 * 60_000,
     };
 
-    expect(getTimerTitle(waitingBreak, true, 42 * 60 + 8)).toBe('05:00 · Break · Ready | Tidsanda');
+    expect(getTimerTitle(waitingBreak, true, 42 * 60 + 8)).toBe('05:00 · Break · Ready');
     expect(getTimerTitle({ ...waitingBreak, status: 'running', endsAt: Date.now() + 300_000 }, true, 42 * 60 + 8)).toBe(
-      '05:00 · Break · Running | Tidsanda',
+      '05:00 · Break · Running',
     );
-    expect(getTimerTitle({ ...waitingBreak, status: 'paused' }, true, 42 * 60 + 8)).toBe(
-      '05:00 · Break · Paused | Tidsanda',
-    );
+    expect(getTimerTitle({ ...waitingBreak, status: 'paused' }, true, 42 * 60 + 8)).toBe('05:00 · Break · Paused');
   });
 });

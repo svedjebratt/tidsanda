@@ -115,9 +115,9 @@ test('navigating back to an active timer does not clear its tags', async ({ page
 
   await page.goto('/timer');
   await expect(page.getByText('existing-tag', { exact: true })).toBeVisible();
-  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running \| Tidsanda$/);
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running$/);
   await page.getByRole('link', { name: 'History' }).click();
-  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running \| Tidsanda$/);
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running$/);
   await page.getByRole('link', { name: 'Timer' }).click();
   await expect(page.getByText('existing-tag', { exact: true })).toBeVisible();
 
@@ -166,7 +166,7 @@ test('space starts and stops the timer while typing and the old shortcut do not'
   await expect(
     page.getByRole('link', { name: 'Timer running', exact: true }).locator('.running-indicator'),
   ).toBeVisible();
-  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running \| Tidsanda$/);
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running$/);
   await page.keyboard.press('Space');
   await expect.poll(() => commands).toEqual(['/api/time/start', '/api/time/stop']);
   await expect(timerLink.locator('.running-indicator')).toBeHidden();
