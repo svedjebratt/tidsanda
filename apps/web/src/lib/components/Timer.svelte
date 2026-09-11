@@ -6,7 +6,6 @@
 	import LogList from './LogList.svelte';
 	import MenuBar from './MenuBar.svelte';
 	import {
-		getActive,
 		getTags,
 		getTimeEntries,
 		start,
@@ -40,18 +39,7 @@
 		}
 	}
 
-	async function init() {
-		try {
-			const active = await getActive();
-			current.set(active);
-			selectedTags = active.tags ?? [];
-		} catch {
-			console.log('no active clock');
-			current.set(null);
-		} finally {
-			activeTimerLoaded = true;
-		}
-
+	async function updateTimerDetails() {
 		try {
 			tags = await getTags();
 		} catch {
@@ -61,10 +49,21 @@
 		await updateLogs();
 	}
 
-	onMount(() => {
+	async function init() {
+		const active = await current.refresh();
+		if (active) {
+			selectedTags = active.tags ?? [];
+		} else {
+			console.log('no active clock');
+		}
+		activeTimerLoaded = true;
+		await updateTimerDetails();
+	}
+
+		onMount(() => {
 		void init();
 		const interval = setInterval(() => {
-			init().catch((err) => console.error(err));
+			updateTimerDetails().catch((err) => console.error(err));
 		}, 60000);
 
 		return () => {

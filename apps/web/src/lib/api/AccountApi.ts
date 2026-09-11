@@ -1,5 +1,14 @@
 import type { Account } from '$lib/types';
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 export function getAccount() {
   return window.localStorage.getItem('account');
 }
@@ -22,7 +31,7 @@ export async function apiGet<T>(url: string, customAccount?: string): Promise<T>
   });
   const json = await response.json();
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(json.error);
+    throw new ApiError(json.error, response.status);
   }
   return json;
 }

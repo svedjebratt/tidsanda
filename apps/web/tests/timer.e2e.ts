@@ -72,6 +72,7 @@ test('g focuses the tag selector without entering the shortcut key', async ({ pa
   await page.goto('/timer');
   const tagInput = page.locator('#TagInput');
   await expect(tagInput).toBeEnabled();
+  await expect(page).toHaveTitle('Tidsanda');
   await tagInput.evaluate((input: HTMLInputElement) => input.blur());
 
   await page.keyboard.press('g');
@@ -114,7 +115,9 @@ test('navigating back to an active timer does not clear its tags', async ({ page
 
   await page.goto('/timer');
   await expect(page.getByText('existing-tag', { exact: true })).toBeVisible();
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running \| Tidsanda$/);
   await page.getByRole('link', { name: 'History' }).click();
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running \| Tidsanda$/);
   await page.getByRole('link', { name: 'Timer' }).click();
   await expect(page.getByText('existing-tag', { exact: true })).toBeVisible();
 
@@ -158,6 +161,8 @@ test('space starts and stops the timer while typing and the old shortcut do not'
   expect(commands).toEqual([]);
   await page.keyboard.press('Space');
   await expect.poll(() => commands).toEqual(['/api/time/start']);
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running \| Tidsanda$/);
   await page.keyboard.press('Space');
   await expect.poll(() => commands).toEqual(['/api/time/start', '/api/time/stop']);
+  await expect(page).toHaveTitle('Tidsanda');
 });

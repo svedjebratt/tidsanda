@@ -1,25 +1,17 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { getAccount } from "$lib/api/AccountApi";
-    import {
-        createInitialPomodoroState,
-        createPomodoroTimer,
-        pomodoroDurations,
-        type PomodoroState,
-        type PomodoroUpdate,
-    } from "$lib/pomodoro";
+    import { pomodoroDurations } from "$lib/pomodoro";
+    import { pomodoro } from "$lib/stores/pomodoroStore";
+    import { formatMilliseconds } from "$lib/timeFormat";
     import { shouldIgnoreShortcut } from "$lib/keyboard";
     import Button from "./Button.svelte";
     import MenuBar from "./MenuBar.svelte";
 
-    let state = $state<PomodoroState>(createInitialPomodoroState(0));
-    let timer: ReturnType<typeof createPomodoroTimer> | null = null;
-
-    let phaseName = $derived(state.phase === "focus" ? "Focus" : "Break");
+    let phaseName = $derived($pomodoro.phase === "focus" ? "Focus" : "Break");
     let actionName = $derived(
-        state.status === "running"
+        $pomodoro.status === "running"
             ? "Pause"
-            : state.status === "paused"
+            : $pomodoro.status === "paused"
               ? "Resume"
               : `Start ${phaseName}`,
     );
@@ -28,19 +20,13 @@
             100,
             Math.max(
                 0,
-                ((pomodoroDurations[state.phase] - state.remainingMs) /
-                    pomodoroDurations[state.phase]) *
+                ((pomodoroDurations[$pomodoro.phase] - $pomodoro.remainingMs) /
+                    pomodoroDurations[$pomodoro.phase]) *
                     100,
             ),
         ),
     );
-    let formattedTime = $derived(formatDuration(state.remainingMs));
-
-    function formatDuration(milliseconds: number) {
-        const seconds = Math.ceil(milliseconds / 1000);
-        const minutes = Math.floor(seconds / 60);
-        return `${minutes.toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
-    }
+    let formattedTime = $derived(formatMilliseconds($pomodoro.remainingMs));
 
     function requestNotifications() {
         if ("Notification" in window && Notification.permission === "default") {
@@ -48,50 +34,16 @@
         }
     }
 
-    function applyUpdate(update: PomodoroUpdate) {
-        state = update.state;
-        if (
-            update.completedPhase &&
-            update.completedAt !== null &&
-            "Notification" in window &&
-            Notification.permission === "granted" &&
-            timer?.claimNotification(update.completedPhase, update.completedAt)
-        ) {
-            const completedFocus = update.completedPhase === "focus";
-            const notification = new Notification(
-                completedFocus ? "Focus complete" : "Break complete",
-                {
-                    body: completedFocus ? "Time for a break" : "Time to focus",
-                },
-            );
-            notification.onclick = () => window.focus();
-        }
-    }
-
     function advance() {
-        if (!timer) return;
         requestNotifications();
-        applyUpdate(timer.advance());
+        pomodoro.advance();
     }
 
     function reset() {
-        if (timer) state = timer.reset();
+        pomodoro.reset();
     }
 
     onMount(() => {
-        const account = getAccount();
-        if (!account) return;
-
-        timer = createPomodoroTimer(account, localStorage);
-        state = timer.read();
-        const interval = window.setInterval(() => {
-            if (timer) applyUpdate(timer.update());
-        }, 250);
-
-        function handleStorage(event: StorageEvent) {
-            if (event.key === timer?.storageKey && timer) state = timer.read();
-        }
-
         function handleKeydown(event: KeyboardEvent) {
             if (event.key !== " " || shouldIgnoreShortcut(event)) {
                 return;
@@ -100,11 +52,8 @@
             advance();
         }
 
-        window.addEventListener("storage", handleStorage);
         document.addEventListener("keydown", handleKeydown);
         return () => {
-            window.clearInterval(interval);
-            window.removeEventListener("storage", handleStorage);
             document.removeEventListener("keydown", handleKeydown);
         };
     });
@@ -114,13 +63,13 @@
     <div>
         <MenuBar active="pomodoro" />
         <section
-            class:focus={state.phase === "focus"}
-            class:break={state.phase === "break"}
+            class:focus={$pomodoro.phase === "focus"}
+            class:break={$pomodoro.phase === "break"}
         >
             <p class="status">
-                {state.status === "paused"
+                {$pomodoro.status === "paused"
                     ? "Paused"
-                    : state.status === "waiting"
+                    : $pomodoro.status === "waiting"
                       ? "Ready"
                       : "Running"}
             </p>

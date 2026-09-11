@@ -14,9 +14,11 @@ import {
   sub,
 } from 'date-fns';
 import { isSameDay } from 'date-fns';
-import { derived, type Readable, readable, writable } from 'svelte/store';
+import { derived, get, type Readable, readable, writable } from 'svelte/store';
 import { getActive, getTimeEntries, start, stop } from '$lib/api/TimeApi';
+import { ApiError } from '$lib/api/AccountApi';
 import type { TimeEntry } from '$lib/types';
+import { formatSeconds } from '$lib/timeFormat';
 
 const { subscribe, set } = writable<TimeEntry | null>(null);
 
@@ -97,13 +99,6 @@ function createTimeHistory() {
   };
 }
 
-function padTwoDigits(value: number) {
-  if (value < 10) {
-    return `0${value}`;
-  }
-  return `${value}`;
-}
-
 export const elapsed = derived([{ subscribe }, time], (timeEntry) => {
   const [$entry, $time] = timeEntry;
   if (!$entry) {
@@ -114,17 +109,14 @@ export const elapsed = derived([{ subscribe }, time], (timeEntry) => {
 });
 
 export function formatSecs(totalSeconds: number) {
-  const hours = Math.floor(Math.abs(totalSeconds) / 3600);
-  const minutes = Math.floor(Math.abs(totalSeconds) / 60) % 60;
-  const seconds = Math.abs(totalSeconds) % 60;
-  return (totalSeconds < 0 ? '-' : '') + `${hours ? hours + ':' : ''}${padTwoDigits(minutes)}:${padTwoDigits(seconds)}`;
+  return formatSeconds(totalSeconds);
 }
 
 export function formatSecsNatural(totalSeconds: number) {
   const hours = Math.floor(Math.abs(totalSeconds) / 3600);
   const minutes = Math.floor(Math.abs(totalSeconds) / 60) % 60;
 
-  return `${hours}h ${padTwoDigits(minutes)}m`;
+  return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
 }
 
 export const active = {
@@ -146,6 +138,36 @@ function createCurrent() {
   });
 
   const current = writable<TimeEntry | null>(null);
+  let revision = 0;
+  let refreshPromise: Promise<TimeEntry | null> | null = null;
+
+  function set(value: TimeEntry | null) {
+    revision += 1;
+    current.set(value);
+  }
+
+  function refresh(force = false) {
+    if (refreshPromise && !force) return refreshPromise;
+
+    const startingRevision = revision;
+    const request = getActive()
+      .then((activeTimer) => {
+        if (revision === startingRevision) current.set(activeTimer);
+        return activeTimer;
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 404) {
+          if (revision === startingRevision) current.set(null);
+          return null;
+        }
+        return get(current);
+      })
+      .finally(() => {
+        if (refreshPromise === request) refreshPromise = null;
+      });
+    refreshPromise = request;
+    return request;
+  }
 
   const elapsed = derived([current, time], (timeEntry) => {
     const [$entry, $time] = timeEntry;
@@ -158,7 +180,8 @@ function createCurrent() {
 
   return {
     subscribe: current.subscribe,
-    set: current.set,
+    set,
+    refresh,
     elapsed,
   };
 }

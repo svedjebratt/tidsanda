@@ -24,18 +24,27 @@ test('a user can navigate to, start, pause, and restore a Pomodoro', async ({ pa
   await expect(page).toHaveURL('/pomodoro');
   await expect(page.getByRole('heading', { name: 'Focus' })).toBeVisible();
   await expect(page.getByText('25:00')).toBeVisible();
+  await expect(page).toHaveTitle('Tidsanda');
 
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Running \| Tidsanda$/);
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Paused \| Tidsanda$/);
+
+  await page.getByRole('link', { name: 'History' }).click();
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Paused \| Tidsanda$/);
+  await page.getByRole('link', { name: 'Pomodoro' }).click();
 
   await page.reload();
   await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Paused \| Tidsanda$/);
 
   await page.getByRole('button', { name: 'Reset' }).click();
   await expect(page.getByRole('button', { name: 'Start Focus' })).toBeVisible();
   await expect(page.getByText('25:00')).toBeVisible();
+  await expect(page).toHaveTitle('Tidsanda');
 });
 
 test('a completed focus period waits for a break and sends one notification', async ({ page }) => {
@@ -76,6 +85,7 @@ test('a completed focus period waits for a break and sends one notification', as
   await expect(page.getByRole('heading', { name: 'Break' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start Break' })).toBeVisible();
   await expect(page.getByText('05:00')).toBeVisible();
+  await expect(page).toHaveTitle('05:00 · Break · Ready | Tidsanda');
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { testNotifications: string[] }).testNotifications))
     .toEqual(['Focus complete']);
