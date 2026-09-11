@@ -113,6 +113,7 @@
 						}
 						break;
 					case 'g':
+						e.preventDefault();
 						tagInput?.focus();
 						break;
 				}

@@ -68,6 +68,21 @@ test('a user can select and remove an existing timer tag', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('g focuses the tag selector without entering the shortcut key', async ({ page }) => {
+  await page.goto('/timer');
+  const tagInput = page.locator('#TagInput');
+  await expect(tagInput).toBeEnabled();
+  await tagInput.evaluate((input: HTMLInputElement) => input.blur());
+
+  await page.keyboard.press('g');
+
+  await expect(tagInput).toBeFocused();
+  await expect(tagInput).toHaveValue('');
+
+  await page.keyboard.press('g');
+  await expect(tagInput).toHaveValue('g');
+});
+
 test('navigating back to an active timer does not clear its tags', async ({ page }) => {
   const activeTimer = {
     account: 'test-account',
