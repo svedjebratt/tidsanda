@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { shouldIgnoreShortcut } from '$lib/keyboard';
+	import { pomodoro } from '$lib/stores/pomodoroStore';
+	import { current } from '$lib/stores/timerStore';
 
 	let { active = 'timer' } = $props<{ active?: 'timer' | 'pomodoro' | 'logs' | 'user' }>();
 
@@ -33,8 +35,17 @@
 </script>
 
 <nav>
-	<a href="/timer" class={active === 'timer' ? 'active' : ''}>Timer</a>
-	<a href="/pomodoro" class={active === 'pomodoro' ? 'active' : ''}>Pomodoro</a>
+	<a href="/timer" class={active === 'timer' ? 'active' : ''}
+		>Timer<span class:running={$current !== null} class="running-indicator" aria-hidden="true"></span
+		>{#if $current}<span class="sr-only"> running</span>{/if}</a
+	>
+	<a href="/pomodoro" class={active === 'pomodoro' ? 'active' : ''}
+		>Pomodoro<span
+			class:running={$pomodoro.status === 'running'}
+			class="running-indicator"
+			aria-hidden="true"
+		></span>{#if $pomodoro.status === 'running'}<span class="sr-only"> running</span>{/if}</a
+	>
 	<a href="/log/day/0" class={active === 'logs' ? 'active' : ''}>History</a>
 	<a href="/user" class={active === 'user' ? 'active' : ''} aria-label="Account"
 		><i class="bi bi-person"></i></a
@@ -79,5 +90,30 @@
 			padding-left: 10px;
 			padding-right: 10px;
 		}
+	}
+
+	.running-indicator {
+		width: 6px;
+		height: 6px;
+		margin-left: 6px;
+		border-radius: 50%;
+		background: #0d6efd;
+		visibility: hidden;
+
+		&.running {
+			visibility: visible;
+		}
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 </style>

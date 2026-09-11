@@ -151,6 +151,8 @@ test('space starts and stops the timer while typing and the old shortcut do not'
 
   await page.goto('/timer');
   const tagInput = page.locator('#TagInput');
+  const timerLink = page.getByRole('link', { name: 'Timer', exact: true });
+  await expect(timerLink.locator('.running-indicator')).toBeHidden();
   await expect(tagInput).toBeEnabled();
   await tagInput.press('Space');
   await tagInput.press('s');
@@ -161,8 +163,12 @@ test('space starts and stops the timer while typing and the old shortcut do not'
   expect(commands).toEqual([]);
   await page.keyboard.press('Space');
   await expect.poll(() => commands).toEqual(['/api/time/start']);
+  await expect(
+    page.getByRole('link', { name: 'Timer running', exact: true }).locator('.running-indicator'),
+  ).toBeVisible();
   await expect(page).toHaveTitle(/^\d{2}:\d{2} · Timer · Running \| Tidsanda$/);
   await page.keyboard.press('Space');
   await expect.poll(() => commands).toEqual(['/api/time/start', '/api/time/stop']);
+  await expect(timerLink.locator('.running-indicator')).toBeHidden();
   await expect(page).toHaveTitle('Tidsanda');
 });

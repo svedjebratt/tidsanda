@@ -24,13 +24,19 @@ test('a user can navigate to, start, pause, and restore a Pomodoro', async ({ pa
   await expect(page).toHaveURL('/pomodoro');
   await expect(page.getByRole('heading', { name: 'Focus' })).toBeVisible();
   await expect(page.getByText('25:00')).toBeVisible();
+  const pomodoroLink = page.getByRole('link', { name: 'Pomodoro', exact: true });
+  await expect(pomodoroLink.locator('.running-indicator')).toBeHidden();
   await expect(page).toHaveTitle('Tidsanda');
 
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Pomodoro running', exact: true }).locator('.running-indicator'),
+  ).toBeVisible();
   await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Running \| Tidsanda$/);
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
+  await expect(pomodoroLink.locator('.running-indicator')).toBeHidden();
   await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Paused \| Tidsanda$/);
 
   await page.getByRole('link', { name: 'History' }).click();
