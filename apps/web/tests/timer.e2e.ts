@@ -68,6 +68,44 @@ test('a user can select and remove an existing timer tag', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('navigating back to an active timer does not clear its tags', async ({ page }) => {
+  const activeTimer = {
+    account: 'test-account',
+    id: 42,
+    start: Date.now(),
+    tags: ['existing-tag'],
+  };
+  const updates: unknown[] = [];
+  let activeRequests = 0;
+
+  await page.unroute('**/api/time**');
+  await page.route('**/api/time**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+
+    if (request.method() === 'PUT') {
+      updates.push(request.postDataJSON());
+      await route.fulfill({ json: activeTimer });
+    } else if (url.pathname.endsWith('/time/tags')) {
+      await route.fulfill({ json: { tags: ['existing-tag'] } });
+    } else if (url.pathname.endsWith('/time/active')) {
+      activeRequests += 1;
+      if (activeRequests > 1) await new Promise((resolve) => setTimeout(resolve, 100));
+      await route.fulfill({ json: activeTimer });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+
+  await page.goto('/timer');
+  await expect(page.getByText('existing-tag', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'History' }).click();
+  await page.getByRole('link', { name: 'Timer' }).click();
+  await expect(page.getByText('existing-tag', { exact: true })).toBeVisible();
+
+  expect(updates).toEqual([]);
+});
+
 test('space starts and stops the timer while typing and the old shortcut do not', async ({ page }) => {
   const commands: string[] = [];
   const activeTimer = {

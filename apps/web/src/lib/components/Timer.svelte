@@ -22,6 +22,7 @@
 	let tagFilter = $state('');
 	let logs = $state<TimeEntry[]>([]);
 	let tagInput = $state<HTMLInputElement | null>(null);
+	let activeTimerLoaded = $state(false);
 	let selectableTags = $derived(
 		tagFilter.trim() && !tags.includes(tagFilter.trim()) ? [...tags, tagFilter.trim()] : tags
 	);
@@ -47,6 +48,8 @@
 		} catch {
 			console.log('no active clock');
 			current.set(null);
+		} finally {
+			activeTimerLoaded = true;
 		}
 
 		try {
@@ -126,6 +129,8 @@
 	const elapsed = current.elapsed;
 
 	function setTags(value: string[] | null) {
+		if (!activeTimerLoaded) return;
+
 		const newTags = value ?? [];
 		selectedTags = newTags;
 		if (
@@ -214,6 +219,7 @@
 				items={selectableTagOptions}
 				valueMode="id"
 				multiple
+				disabled={!activeTimerLoaded}
 				placeholder="Set tags"
 				inputAttributes={{ id: 'TagInput' }}
 			/>
