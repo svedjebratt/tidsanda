@@ -172,3 +172,115 @@ test('space starts and stops the timer while typing and the old shortcut do not'
   await expect(timerLink.locator('.running-indicator')).toBeHidden();
   await expect(page).toHaveTitle('Tidsanda');
 });
+
+test('today entries are grouped by exact tag set and remain independently editable', async ({ page }) => {
+  const entries = [
+    {
+      account: 'test-account',
+      id: 1,
+      start: new Date('2026-09-15T08:00:00Z').getTime(),
+      stop: new Date('2026-09-15T08:30:00Z').getTime(),
+      duration: 1800,
+      tags: ['planning', 'client-a'],
+    },
+    {
+      account: 'test-account',
+      id: 2,
+      start: new Date('2026-09-15T10:00:00Z').getTime(),
+      stop: new Date('2026-09-15T10:30:00Z').getTime(),
+      duration: 1800,
+      tags: ['client-a', 'planning'],
+    },
+    {
+      account: 'test-account',
+      id: 3,
+      start: new Date('2026-09-15T09:00:00Z').getTime(),
+      stop: new Date('2026-09-15T09:30:00Z').getTime(),
+      duration: 1800,
+      tags: ['client-b'],
+    },
+    {
+      account: 'test-account',
+      id: 4,
+      start: new Date('2026-09-15T11:00:00Z').getTime(),
+      stop: new Date('2026-09-15T11:30:00Z').getTime(),
+      duration: 1800,
+      tags: [],
+    },
+  ];
+
+  await page.unroute('**/api/time**');
+  await page.route('**/api/time**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/time/tags')) {
+      await route.fulfill({ json: { tags: ['client-a', 'client-b', 'planning'] } });
+    } else if (url.pathname.endsWith('/time/active')) {
+      await route.fulfill({ status: 404, json: { error: 'No active timer' } });
+    } else {
+      await route.fulfill({ json: entries });
+    }
+  });
+
+  await page.goto('/timer');
+
+  const groups = page.getByRole('group', { name: 'Tag group' });
+  await expect(groups).toHaveCount(3);
+  await expect(groups.nth(0).getByRole('link')).toHaveAttribute('href', '/log/4');
+  await expect(groups.nth(1).getByRole('link')).toHaveCount(2);
+  await expect(groups.nth(1).getByRole('link').nth(0)).toHaveAttribute('href', '/log/2');
+  await expect(groups.nth(1).getByRole('link').nth(1)).toHaveAttribute('href', '/log/1');
+  await expect(groups.nth(2).getByRole('link')).toHaveAttribute('href', '/log/3');
+  await expect(page.getByText('client-a', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('planning', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('client-b', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('untagged', { exact: false })).toHaveCount(0);
+});
+
+test('a tag group restarts its tags with and without an active timer', async ({ page }) => {
+  const completedEntry = {
+    account: 'test-account',
+    id: 1,
+    start: new Date('2026-09-15T08:00:00Z').getTime(),
+    stop: new Date('2026-09-15T08:30:00Z').getTime(),
+    duration: 1800,
+    tags: ['planning', 'client-a'],
+  };
+  const activeTimer = {
+    account: 'test-account',
+    id: 2,
+    start: Date.now(),
+    tags: ['other-work'],
+  };
+  const commands: Array<{ path: string; body: unknown }> = [];
+  let hasActiveTimer = false;
+
+  await page.unroute('**/api/time**');
+  await page.route('**/api/time**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/time/tags')) {
+      await route.fulfill({ json: { tags: ['client-a', 'planning', 'other-work'] } });
+    } else if (url.pathname.endsWith('/time/active')) {
+      await route.fulfill(hasActiveTimer ? { json: activeTimer } : { status: 404, json: { error: 'No active timer' } });
+    } else if (request.method() === 'POST') {
+      commands.push({ path: url.pathname, body: request.postDataJSON() });
+      hasActiveTimer = url.pathname.endsWith('/start');
+      await route.fulfill({ json: activeTimer });
+    } else {
+      await route.fulfill({ json: [completedEntry] });
+    }
+  });
+
+  await page.goto('/timer');
+  await page.getByRole('button', { name: 'Restart timer with tags client-a, planning' }).click();
+  await expect.poll(() => commands).toEqual([{ path: '/api/time/start', body: { tags: ['client-a', 'planning'] } }]);
+
+  commands.length = 0;
+  await page.getByRole('button', { name: 'Restart timer with tags client-a, planning' }).click();
+  await expect
+    .poll(() => commands)
+    .toEqual([
+      { path: '/api/time/stop', body: {} },
+      { path: '/api/time/start', body: { tags: ['client-a', 'planning'] } },
+    ]);
+});
