@@ -139,7 +139,9 @@ test('space starts and stops the timer while typing and the old shortcut do not'
     const url = new URL(request.url());
     if (request.method() === 'POST') {
       commands.push(url.pathname);
-      await route.fulfill({ json: activeTimer });
+      await route.fulfill({
+        json: url.pathname.endsWith('/stop') ? { discarded: false, timeEntry: activeTimer } : activeTimer,
+      });
     } else if (url.pathname.endsWith('/time/tags')) {
       await route.fulfill({ json: { tags: [] } });
     } else if (url.pathname.endsWith('/time/active')) {
@@ -171,6 +173,136 @@ test('space starts and stops the timer while typing and the old shortcut do not'
   await expect.poll(() => commands).toEqual(['/api/time/start', '/api/time/stop']);
   await expect(timerLink.locator('.running-indicator')).toBeHidden();
   await expect(page).toHaveTitle('Tidsanda');
+});
+
+test('a discarded short entry is explained for five seconds or until another timer starts', async ({ page }) => {
+  const activeTimer = {
+    account: 'test-account',
+    id: 42,
+    start: Date.now(),
+    tags: [],
+  };
+  let active = false;
+
+  await page.unroute('**/api/time**');
+  await page.route('**/api/time**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/time/start')) {
+      active = true;
+      await route.fulfill({ json: activeTimer });
+    } else if (url.pathname.endsWith('/time/stop')) {
+      active = false;
+      await route.fulfill({ json: { discarded: true } });
+    } else if (url.pathname.endsWith('/time/tags')) {
+      await route.fulfill({ json: { tags: [] } });
+    } else if (url.pathname.endsWith('/time/active')) {
+      await route.fulfill(active ? { json: activeTimer } : { status: 404, json: { error: 'No active timer' } });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+
+  await page.goto('/timer');
+  await expect(page.locator('#TagInput')).toBeEnabled();
+  await page.keyboard.press('Space');
+  await expect(page).toHaveTitle(/Timer · Running$/);
+  await page.keyboard.press('Space');
+
+  const status = page.getByRole('status');
+  await expect(status).toHaveText('Entry under 10 seconds discarded');
+
+  await expect(status).toBeHidden({ timeout: 6000 });
+
+  await page.keyboard.press('Space');
+  await expect(page).toHaveTitle(/Timer · Running$/);
+  await page.keyboard.press('Space');
+  await expect(status).toHaveText('Entry under 10 seconds discarded');
+
+  await page.keyboard.press('Space');
+  await expect(status).toBeHidden();
+});
+
+test('stopping waits for an adjusted start time to be saved', async ({ page }) => {
+  let activeTimer = {
+    account: 'test-account',
+    id: 42,
+    start: Date.now(),
+    tags: [],
+  };
+  let startUpdateSaved = false;
+  let stopSawStartUpdate = false;
+
+  await page.unroute('**/api/time**');
+  await page.route('**/api/time**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === 'PUT') {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      activeTimer = { ...activeTimer, start: request.postDataJSON().start };
+      startUpdateSaved = true;
+      await route.fulfill({ json: activeTimer });
+    } else if (url.pathname.endsWith('/time/stop')) {
+      stopSawStartUpdate = startUpdateSaved;
+      await route.fulfill({
+        json: {
+          discarded: false,
+          timeEntry: { ...activeTimer, stop: Date.now(), duration: 300 },
+        },
+      });
+    } else if (url.pathname.endsWith('/time/tags')) {
+      await route.fulfill({ json: { tags: [] } });
+    } else if (url.pathname.endsWith('/time/active')) {
+      await route.fulfill({ json: activeTimer });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+
+  await page.goto('/timer');
+  await expect(page.locator('#TagInput')).toBeEnabled();
+  await page.keyboard.press('Shift+ArrowDown');
+  await page.keyboard.press('Space');
+
+  await expect(page).toHaveTitle('Tidsanda');
+  expect(stopSawStartUpdate).toBe(true);
+  await expect(page.getByRole('status')).toBeHidden();
+});
+
+test('a failed start-time update prevents stopping with stale duration', async ({ page }) => {
+  const activeTimer = {
+    account: 'test-account',
+    id: 42,
+    start: Date.now(),
+    tags: [],
+  };
+  let stopRequests = 0;
+
+  await page.unroute('**/api/time**');
+  await page.route('**/api/time**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === 'PUT') {
+      await route.fulfill({ status: 500, json: { error: 'Update failed' } });
+    } else if (url.pathname.endsWith('/time/stop')) {
+      stopRequests += 1;
+      await route.fulfill({ json: { discarded: true } });
+    } else if (url.pathname.endsWith('/time/tags')) {
+      await route.fulfill({ json: { tags: [] } });
+    } else if (url.pathname.endsWith('/time/active')) {
+      await route.fulfill({ json: activeTimer });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+
+  await page.goto('/timer');
+  await expect(page.locator('#TagInput')).toBeEnabled();
+  await page.keyboard.press('Shift+ArrowDown');
+  await page.keyboard.press('Space');
+
+  await expect(page).toHaveTitle(/Timer · Running$/);
+  expect(stopRequests).toBe(0);
 });
 
 test('today entries are grouped by exact tag set and remain independently editable', async ({ page }) => {
@@ -266,7 +398,9 @@ test('an edited time entry restarts its tags with and without an active timer', 
     } else if (request.method() === 'POST') {
       commands.push({ path: url.pathname, body: request.postDataJSON() });
       hasActiveTimer = url.pathname.endsWith('/start');
-      await route.fulfill({ json: activeTimer });
+      await route.fulfill({
+        json: url.pathname.endsWith('/stop') ? { discarded: true } : activeTimer,
+      });
     } else if (url.pathname.endsWith('/time/1')) {
       await route.fulfill({ json: completedEntry });
     } else {

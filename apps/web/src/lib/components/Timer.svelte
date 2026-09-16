@@ -6,6 +6,7 @@
 	import LogList from './LogList.svelte';
 	import MenuBar from './MenuBar.svelte';
 	import {
+		getActive,
 		getTags,
 		getTimeEntries,
 		start,
@@ -22,6 +23,11 @@
 	let logs = $state<TimeEntry[]>([]);
 	let tagInput = $state<HTMLInputElement | null>(null);
 	let activeTimerLoaded = $state(false);
+	let stopping = $state(false);
+	let stopStatus = $state('');
+	let stopStatusTimeout: ReturnType<typeof setTimeout> | undefined;
+	let pendingTimerUpdate = Promise.resolve();
+	let timerUpdateFailed = false;
 	let selectableTags = $derived(
 		tagFilter.trim() && !tags.includes(tagFilter.trim()) ? [...tags, tagFilter.trim()] : tags
 	);
@@ -68,25 +74,61 @@
 
 		return () => {
 			clearInterval(interval);
+			if (stopStatusTimeout) clearTimeout(stopStatusTimeout);
 		};
 	});
 
-	function updateStart(increase: boolean) {
-		if (!$current) return;
-
-		const change = $current.start.getMinutes() % 5;
-		let start;
-		if (increase) {
-			start = addMinutes($current.start, 5 - change);
-			if (isAfter(start, new Date())) {
-				start = new Date();
+	function queueTimerUpdate(update: (timeEntry: TimeEntry) => Promise<TimeEntry>, errorMessage: string) {
+		pendingTimerUpdate = pendingTimerUpdate.then(async () => {
+			if (!$current) return;
+			try {
+				current.set(await update($current));
+			} catch {
+				timerUpdateFailed = true;
+				console.log(errorMessage);
 			}
-		} else {
-			start = subMinutes($current.start, change > 0 ? change : 5);
+		});
+	}
+
+	async function waitForTimerUpdates() {
+		await pendingTimerUpdate;
+		if (timerUpdateFailed) {
+			const active = await getActive();
+			current.set(active);
+			timerUpdateFailed = false;
+			throw new Error('Could not save timer changes');
 		}
-		updateTimeEntry($current.id, { ...$current, start })
-			.then(current.set)
-			.catch(() => console.log('could not update current timer'));
+	}
+
+	function clearStopStatus() {
+		stopStatus = '';
+		if (stopStatusTimeout) clearTimeout(stopStatusTimeout);
+		stopStatusTimeout = undefined;
+	}
+
+	function showDiscardedStatus() {
+		clearStopStatus();
+		stopStatus = 'Entry under 10 seconds discarded';
+		stopStatusTimeout = setTimeout(clearStopStatus, 5000);
+	}
+
+	function updateStart(increase: boolean) {
+		if (!$current || stopping) return;
+
+		queueTimerUpdate(
+			(timeEntry) => {
+				const change = timeEntry.start.getMinutes() % 5;
+				let start;
+				if (increase) {
+					start = addMinutes(timeEntry.start, 5 - change);
+					if (isAfter(start, new Date())) start = new Date();
+				} else {
+					start = subMinutes(timeEntry.start, change > 0 ? change : 5);
+				}
+				return updateTimeEntry(timeEntry.id, { ...timeEntry, start });
+			},
+			'could not update current timer'
+		);
 	}
 
 	onMount(() => {
@@ -129,7 +171,7 @@
 	const elapsed = current.elapsed;
 
 	function setTags(value: string[] | null) {
-		if (!activeTimerLoaded) return;
+		if (!activeTimerLoaded || stopping) return;
 
 		const newTags = value ?? [];
 		selectedTags = newTags;
@@ -137,12 +179,13 @@
 			$current &&
 			($current.tags.length !== newTags.length || newTags.some((tag) => !$current?.tags.includes(tag)))
 		) {
-			updateTimeEntry($current.id, {
-				...$current,
-				tags: newTags
-			})
-				.then(current.set)
-				.catch(() => console.log('could not update current timer'));
+			queueTimerUpdate(
+				(timeEntry) => updateTimeEntry(timeEntry.id, {
+					...timeEntry,
+					tags: newTags
+				}),
+				'could not update current timer'
+			);
 		}
 
 		tags = newTags.reduce((all, tag) => {
@@ -154,12 +197,21 @@
 	}
 
 	async function stopTimer() {
+		if (stopping) return;
+		stopping = true;
 		try {
-			await stop();
+			await waitForTimerUpdates();
+			const result = await stop();
 			current.set(null);
-			await updateLogs();
+			if (result.discarded) {
+				showDiscardedStatus();
+			} else {
+				await updateLogs();
+			}
 		} catch (err) {
 			console.log('error stopping timer', err);
+		} finally {
+			stopping = false;
 		}
 	}
 
@@ -167,6 +219,7 @@
 		try {
 			console.log('start with tags', selectedTags);
 			current.set(await start(selectedTags));
+			clearStopStatus();
 		} catch (err) {
 			console.log('error starting timer', err);
 		}
@@ -190,6 +243,7 @@
 						type="button"
 						class="skip-start"
 						onclick={() => updateStart(false)}
+						disabled={stopping}
 						aria-label="Move start time back"
 						><i class="bi bi-skip-start"></i></button
 					>
@@ -197,10 +251,11 @@
 						type="button"
 						class="skip-end"
 						onclick={() => updateStart(true)}
+						disabled={stopping}
 						aria-label="Move start time forward"
 						><i class="bi bi-skip-end"></i></button
 					>
-					<Button onclick={stopTimer} large><i class="bi bi-pause"></i></Button>
+					<Button onclick={stopTimer} disabled={stopping} large><i class="bi bi-pause"></i></Button>
 				</div>
 			{:else}
 				<div>
@@ -209,6 +264,9 @@
 				<Button onclick={startTimer} large><i class="bi bi-play"></i></Button>
 			{/if}
 		</div>
+		{#if stopStatus}
+			<div class="stop-status" role="status" aria-live="polite" aria-atomic="true">{stopStatus}</div>
+		{/if}
 
 		<div class="edit-tags">
 			<Select
@@ -219,7 +277,7 @@
 				items={selectableTagOptions}
 				valueMode="id"
 				multiple
-				disabled={!activeTimerLoaded}
+				disabled={!activeTimerLoaded || stopping}
 				placeholder="Set tags"
 				inputAttributes={{ id: 'TagInput' }}
 			/>
@@ -265,6 +323,12 @@
 
 	.edit-start-time {
 		font-size: 0.7rem;
+		color: var(--col-grey-60);
+	}
+
+	.stop-status {
+		margin-top: var(--space-3);
+		font-size: 0.75rem;
 		color: var(--col-grey-60);
 	}
 

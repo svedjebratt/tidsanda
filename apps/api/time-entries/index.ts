@@ -7,9 +7,34 @@ import {
   getLatestTags,
   getNextId,
   getTimeEntryByTimeId,
+  isTimeEntryConflict,
   saveTimeEntry,
 } from './db';
 import { parseRoute } from '../parseRoute';
+
+const MIN_TIME_ENTRY_DURATION_MS = 10_000;
+
+async function stopActiveTimeEntry(account: string, stop: number) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const active = await getActiveTimeEntry(account);
+    if (!active) return null;
+
+    try {
+      if (stop - active.start < MIN_TIME_ENTRY_DURATION_MS) {
+        await deleteTimeEntry(active, active);
+        return { discarded: true } as const;
+      }
+
+      const stopped = { ...active, stop };
+      await saveTimeEntry(stopped, active);
+      return { discarded: false, timeEntry: addDuration(stopped) } as const;
+    } catch (error) {
+      if (!isTimeEntryConflict(error)) throw error;
+    }
+  }
+
+  throw new Error('time_entry_conflict');
+}
 
 export const handler = async (route: string, account: Account | null, event: APIEvent): Promise<APIResponse> => {
   let body: any;
@@ -49,14 +74,12 @@ export const handler = async (route: string, account: Account | null, event: API
         body = timeEntry;
       }
     } else if (routeParser.parse(/^POST \/api\/time\/stop$/)) {
-      const active = await getActiveTimeEntry(account.apiKey);
-      if (!active) {
+      const result = await stopActiveTimeEntry(account.apiKey, new Date().getTime());
+      if (!result) {
         statusCode = 400;
         body = { error: 'no_active_timer' };
       } else {
-        active.stop = new Date().getTime();
-        await saveTimeEntry(active);
-        body = addDuration(active);
+        body = result;
       }
     } else if (routeParser.parse(/^GET \/api\/time\/active$/)) {
       const active = await getActiveTimeEntry(account.apiKey);
@@ -88,7 +111,7 @@ export const handler = async (route: string, account: Account | null, event: API
             ...(stop && { stop }),
             ...(tags && { tags }),
           };
-          await saveTimeEntry(body);
+          await saveTimeEntry(body, timeEntry[0].stop ? undefined : timeEntry[0]);
         }
       }
     } else if (routeParser.parse(/^DELETE \/api\/time\/(\d+)$/)) {

@@ -9,6 +9,10 @@ interface JsonTimeEntry {
   tags: string[];
 }
 
+type JsonStopResult = { discarded: true } | { discarded: false; timeEntry: JsonTimeEntry };
+
+export type StopResult = { discarded: true } | { discarded: false; timeEntry: TimeEntry };
+
 function toTimeEntry(jsonTimeEntry: JsonTimeEntry): TimeEntry {
   return {
     ...jsonTimeEntry,
@@ -29,8 +33,10 @@ export function start(tags?: string[]) {
   return apiPost<JsonTimeEntry>(`${url}/time/start`, { tags }).then(toTimeEntry);
 }
 
-export function stop() {
-  return apiPost<JsonTimeEntry>(`${url}/time/stop`, {}).then(toTimeEntry);
+export function stop(): Promise<StopResult> {
+  return apiPost<JsonStopResult>(`${url}/time/stop`, {}).then((result) =>
+    result.discarded ? result : { ...result, timeEntry: toTimeEntry(result.timeEntry) },
+  );
 }
 
 export function getTimeEntries(from: Date, to: Date) {
