@@ -234,9 +234,10 @@ test('today entries are grouped by exact tag set and remain independently editab
   await expect(page.getByText('planning', { exact: true })).toHaveCount(1);
   await expect(page.getByText('client-b', { exact: true })).toHaveCount(1);
   await expect(page.getByText('untagged', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('Σ 1h 00m', { exact: true })).toHaveCount(1);
 });
 
-test('a tag group restarts its tags with and without an active timer', async ({ page }) => {
+test('an edited time entry restarts its tags with and without an active timer', async ({ page }) => {
   const completedEntry = {
     account: 'test-account',
     id: 1,
@@ -266,21 +267,27 @@ test('a tag group restarts its tags with and without an active timer', async ({ 
       commands.push({ path: url.pathname, body: request.postDataJSON() });
       hasActiveTimer = url.pathname.endsWith('/start');
       await route.fulfill({ json: activeTimer });
+    } else if (url.pathname.endsWith('/time/1')) {
+      await route.fulfill({ json: completedEntry });
     } else {
       await route.fulfill({ json: [completedEntry] });
     }
   });
 
   await page.goto('/timer');
-  await page.getByRole('button', { name: 'Restart timer with tags client-a, planning' }).click();
-  await expect.poll(() => commands).toEqual([{ path: '/api/time/start', body: { tags: ['client-a', 'planning'] } }]);
+  await page.getByRole('link', { name: /Duration/ }).click();
+  await page.getByRole('button', { name: 'Restart time entry' }).click();
+  await expect(page).toHaveURL('/timer');
+  await expect.poll(() => commands).toEqual([{ path: '/api/time/start', body: { tags: ['planning', 'client-a'] } }]);
 
   commands.length = 0;
-  await page.getByRole('button', { name: 'Restart timer with tags client-a, planning' }).click();
+  await page.getByRole('link', { name: /Duration/ }).click();
+  await page.getByRole('button', { name: 'Restart time entry' }).click();
+  await expect(page).toHaveURL('/timer');
   await expect
     .poll(() => commands)
     .toEqual([
       { path: '/api/time/stop', body: {} },
-      { path: '/api/time/start', body: { tags: ['client-a', 'planning'] } },
+      { path: '/api/time/start', body: { tags: ['planning', 'client-a'] } },
     ]);
 });

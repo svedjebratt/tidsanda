@@ -172,21 +172,6 @@
 		}
 	}
 
-	async function restartTimer(groupTags: string[]) {
-		try {
-			if ($current) {
-				await stop();
-				current.set(null);
-			}
-
-			selectedTags = groupTags;
-			current.set(await start(groupTags));
-			await updateLogs();
-		} catch (err) {
-			console.log('error restarting timer', err);
-		}
-	}
-
 </script>
 
 <main>
@@ -245,8 +230,7 @@
 			activeElapsed={$elapsed}
 			referrer="/timer"
 			hideDateLabel={true}
-			groupByTags={true}
-			onRestart={restartTimer}
+			grouping="tags"
 		/>
 	</div>
 </main>

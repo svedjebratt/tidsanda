@@ -5,18 +5,20 @@
         large = false,
         disabled = false,
         type = "button",
+        ariaLabel,
         onclick,
         children,
     }: {
         large?: boolean;
         disabled?: boolean;
         type?: "button" | "submit" | "reset";
+        ariaLabel?: string;
         onclick?: (event: MouseEvent) => void;
         children: Snippet;
     } = $props();
 </script>
 
-<button {onclick} {type} class={large ? "large" : ""} {disabled}
+<button {onclick} {type} class={large ? "large" : ""} {disabled} aria-label={ariaLabel}
     >{@render children()}</button
 >
 

@@ -2,25 +2,26 @@
     import { format, isSameDay } from "date-fns";
     import { goto } from "$app/navigation";
     import Tag from "./Tag.svelte";
-    import { groupTimeEntries } from "$lib/groupTimeEntries";
+    import {
+        groupTimeEntries,
+        groupTagGroupsByStartDay,
+        type TagGroup,
+    } from "$lib/groupTimeEntries";
     import { formatSecsNatural } from "$lib/stores/timerStore";
     import type { TimeEntry } from "$lib/types";
-    import Button from "./Button.svelte";
 
     let {
         logs = [],
         activeElapsed = 0,
         referrer = "",
         hideDateLabel = false,
-        groupByTags = false,
-        onRestart,
+        grouping = "entries",
     } = $props<{
         logs?: TimeEntry[];
         activeElapsed?: number;
         referrer?: string;
         hideDateLabel?: boolean;
-        groupByTags?: boolean;
-        onRestart?: (tags: string[]) => void | Promise<void>;
+        grouping?: "entries" | "tags" | "start-day-tags";
     }>();
     let total = $derived(
         activeElapsed +
@@ -30,7 +31,10 @@
                 0,
             ),
     );
-    let tagGroups = $derived(groupByTags ? groupTimeEntries(logs) : []);
+    let tagGroups = $derived(grouping === "tags" ? groupTimeEntries(logs) : []);
+    let tagGroupsByStartDay = $derived(
+        grouping === "start-day-tags" ? groupTagGroupsByStartDay(logs) : [],
+    );
 
     function goTo(url: string) {
         goto(url, { state: referrer ? { prevUrl: referrer } : undefined });
@@ -73,37 +77,40 @@
     </a>
 {/snippet}
 
+{#snippet tagGroup(group: TagGroup)}
+    <li class="tag-group" role="group" aria-label="Tag group">
+        {#each group.entries as timeEntry}
+            <div class="entry-row">
+                {@render timeEntryLink(timeEntry, false)}
+            </div>
+        {/each}
+        <div class="group-footer">
+            {#if group.entries.length > 1}
+                <div class="group-total">Σ {formatSecsNatural(group.totalDuration)}</div>
+            {/if}
+            <div class="tags">
+                {#each group.tags as tag}
+                    <span class="tag"><Tag>{tag}</Tag></span>
+                {/each}
+            </div>
+        </div>
+    </li>
+{/snippet}
+
 <div>
     <ul>
-        {#if groupByTags}
+        {#if grouping === "start-day-tags"}
+            {#each tagGroupsByStartDay as day}
+                {#if !hideDateLabel}
+                    <li><h4>{format(day.date, "EEEE, d MMM")}</h4></li>
+                {/if}
+                {#each day.groups as group}
+                    {@render tagGroup(group)}
+                {/each}
+            {/each}
+        {:else if grouping === "tags"}
             {#each tagGroups as group}
-                <li class="tag-group" role="group" aria-label="Tag group">
-                    {#each group.entries as timeEntry}
-                        <div class="entry-row">
-                            {@render timeEntryLink(timeEntry, false)}
-                        </div>
-                    {/each}
-                    <div class="group-footer">
-                        <Button onclick={() => onRestart?.(group.tags)}>
-                            <i class="bi bi-play"></i>
-                        </Button>
-                        <div class="tags">
-                            {#each group.tags as tag}
-                                <span class="tag"><Tag>{tag}</Tag></span>
-                            {/each}
-                        </div>
-                        <!-- <button
-                            type="button"
-                            class="restart"
-                            aria-label={group.tags.length
-                                ? `Restart timer with tags ${group.tags.join(", ")}`
-                                : "Restart timer without tags"}
-                            onclick={() => onRestart?.(group.tags)}
-                        >
-                            <i class="bi bi-play"></i>
-                        </button> -->
-                    </div>
-                </li>
+                {@render tagGroup(group)}
             {/each}
         {:else}
             {#each logs as timeEntry, index}
@@ -166,18 +173,8 @@
         }
     }
 
-    .restart {
-        margin-left: var(--space-3);
-        // border: 1px solid var(--col-grey-70);
-        // background: var(--col-grey-40);
-        border: none;
-        background: none;
-        color: var(--col-grey-70);
-        cursor: pointer;
-        font-size: 1rem;
-        :hover {
-            color: var(--col-grey-50);
-        }
+    .group-total {
+        white-space: nowrap;
     }
 
     .time {

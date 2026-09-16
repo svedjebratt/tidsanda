@@ -169,6 +169,18 @@ function createCurrent() {
     return request;
   }
 
+  async function restart(tags: string[]) {
+    const activeTimer = await refresh();
+    if (activeTimer) {
+      await stop();
+      set(null);
+    }
+
+    const restartedTimer = await start(tags);
+    set(restartedTimer);
+    return restartedTimer;
+  }
+
   const elapsed = derived([current, time], (timeEntry) => {
     const [$entry, $time] = timeEntry;
     if (!$entry) {
@@ -182,6 +194,7 @@ function createCurrent() {
     subscribe: current.subscribe,
     set,
     refresh,
+    restart,
     elapsed,
   };
 }

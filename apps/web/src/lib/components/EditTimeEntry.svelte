@@ -15,7 +15,7 @@
 	import Button from './Button.svelte';
 	import MenuBar from './MenuBar.svelte';
 	import { deleteTimeEntry, getTags, getTimeEntry, updateTimeEntry } from '$lib/api/TimeApi';
-	import { formatSecsNatural } from '$lib/stores/timerStore';
+	import { current, formatSecsNatural } from '$lib/stores/timerStore';
 	import type { TimeEntry } from '$lib/types';
 
 	let { timeId } = $props<{ timeId: number }>();
@@ -119,6 +119,16 @@
 		}
 	}
 
+	async function restartEntry(): Promise<void> {
+		if (!timeEntry) return;
+		try {
+			await current.restart(timeEntry.tags);
+			await goto('/timer');
+		} catch (error) {
+			console.error('Could not restart time entry:', error);
+		}
+	}
+
 	function addStartDay(): void {
 		if (!timeEntry || !isValidNextStartDay) return;
 		timeEntry = { ...timeEntry, start: addDays(timeEntry.start as Date, 1) };
@@ -144,7 +154,12 @@
 	<div>
 		<MenuBar active={isLog ? 'logs' : 'timer'} />
 		{#if timeEntry}
-			<h2 class="duration">{duration}</h2>
+			<div class="duration-row">
+				<h2 class="duration">{duration}</h2>
+				<Button onclick={restartEntry} ariaLabel="Restart time entry" large
+					><i class="bi bi-play"></i></Button
+				>
+			</div>
 			<form
 				action=""
 				onsubmit={(event) => {
@@ -220,6 +235,12 @@
 		margin: 0;
 		padding: 0;
 		font-size: 1.8rem;
+	}
+
+	.duration-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
 	}
 
 	.edit-duration {

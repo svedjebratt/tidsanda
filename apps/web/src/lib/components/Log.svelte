@@ -112,6 +112,7 @@
 			logs={filteredLogs}
 			referrer={`/log/${period}/${amountNum}`}
 			hideDateLabel={period === 'day'}
+			grouping="start-day-tags"
 		/>
 	</div>
 </main>
