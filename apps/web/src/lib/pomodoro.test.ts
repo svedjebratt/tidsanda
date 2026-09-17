@@ -66,7 +66,12 @@ describe('Pomodoro timer', () => {
     });
 
     timer.advance();
-    expect(timer.read()).toMatchObject({ phase: 'break', status: 'waiting', remainingMs: 5 * 60_000 });
+    expect(timer.read()).toMatchObject({
+      phase: 'break',
+      status: 'running',
+      remainingMs: 5 * 60_000,
+      endsAt: now + 5 * 60_000,
+    });
   });
 
   it('waits for the user before starting the next focus interval after a break', () => {
@@ -76,7 +81,6 @@ describe('Pomodoro timer', () => {
 
     timer.advance();
     now += 25 * 60_000;
-    timer.advance();
     timer.advance();
     now += 5 * 60_000;
     expect(timer.update()).toMatchObject({

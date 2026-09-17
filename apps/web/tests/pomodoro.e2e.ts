@@ -98,9 +98,9 @@ test('a completed focus interval counts overtime until the user ends focus', asy
 
   await page.keyboard.press('Space');
   await expect(page.getByRole('heading', { name: 'Break' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Start Break' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await expect(page.getByText('05:00')).toBeVisible();
-  await expect(page).toHaveTitle('05:00 · Break · Ready');
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Break · Running$/);
 });
 
 test('reopening an expired focus interval restores overtime without a stale notification', async ({ page }) => {

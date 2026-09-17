@@ -124,9 +124,9 @@ export function createPomodoroTimer(account: string, storage: Storage, now: () =
       state = {
         version: 1,
         phase: 'break',
-        status: 'waiting',
+        status: 'running',
         remainingMs: pomodoroDurations.break,
-        endsAt: null,
+        endsAt: currentTime + pomodoroDurations.break,
         updatedAt: currentTime,
       };
     } else if (normalized.state.status === 'running') {
