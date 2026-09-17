@@ -1,5 +1,5 @@
 export type PomodoroPhase = 'focus' | 'break';
-export type PomodoroStatus = 'waiting' | 'running' | 'paused';
+export type PomodoroStatus = 'waiting' | 'running' | 'paused' | 'overtime';
 
 export interface PomodoroState {
   version: 1;
@@ -21,6 +21,10 @@ export const pomodoroDurations: Record<PomodoroPhase, number> = {
   break: 5 * 60_000,
 };
 
+export function isFocusOvertime(state: PomodoroState) {
+  return state.status === 'overtime';
+}
+
 export function createInitialPomodoroState(now = Date.now()): PomodoroState {
   return {
     version: 1,
@@ -38,13 +42,17 @@ function isState(value: unknown): value is PomodoroState {
   return (
     state.version === 1 &&
     (state.phase === 'focus' || state.phase === 'break') &&
-    (state.status === 'waiting' || state.status === 'running' || state.status === 'paused') &&
+    (state.status === 'waiting' ||
+      state.status === 'running' ||
+      state.status === 'paused' ||
+      state.status === 'overtime') &&
     typeof state.remainingMs === 'number' &&
     Number.isFinite(state.remainingMs) &&
-    state.remainingMs >= 0 &&
+    (state.remainingMs >= 0 || state.status === 'overtime') &&
     state.remainingMs <= pomodoroDurations[state.phase] &&
+    (state.status !== 'overtime' || (state.phase === 'focus' && state.remainingMs <= 0)) &&
     (state.endsAt === null || (typeof state.endsAt === 'number' && Number.isFinite(state.endsAt))) &&
-    (state.status === 'running' ? state.endsAt !== null : state.endsAt === null) &&
+    (state.status === 'running' || state.status === 'overtime' ? state.endsAt !== null : state.endsAt === null) &&
     typeof state.updatedAt === 'number' &&
     Number.isFinite(state.updatedAt)
   );
@@ -74,26 +82,35 @@ export function createPomodoroTimer(account: string, storage: Storage, now: () =
   function update(): PomodoroUpdate {
     const current = load();
     const currentTime = now();
-    if (current.status !== 'running' || current.endsAt === null) {
+    if ((current.status !== 'running' && current.status !== 'overtime') || current.endsAt === null) {
       return { state: current, completedPhase: null, completedAt: null };
     }
 
-    const remainingMs = Math.max(0, current.endsAt - currentTime);
+    const remainingMs = current.endsAt - currentTime;
     if (remainingMs > 0) {
       return { state: { ...current, remainingMs }, completedPhase: null, completedAt: null };
     }
 
-    const nextPhase = current.phase === 'focus' ? 'break' : 'focus';
+    if (current.phase === 'focus') {
+      const state: PomodoroState = { ...current, status: 'overtime', remainingMs };
+      const justCompleted = current.status === 'running';
+      return {
+        state: justCompleted ? save(state) : state,
+        completedPhase: justCompleted ? 'focus' : null,
+        completedAt: justCompleted ? current.endsAt : null,
+      };
+    }
+
     return {
       state: save({
         version: 1,
-        phase: nextPhase,
+        phase: 'focus',
         status: 'waiting',
-        remainingMs: pomodoroDurations[nextPhase],
+        remainingMs: pomodoroDurations.focus,
         endsAt: null,
         updatedAt: current.endsAt,
       }),
-      completedPhase: current.phase,
+      completedPhase: 'break',
       completedAt: current.endsAt,
     };
   }
@@ -103,7 +120,16 @@ export function createPomodoroTimer(account: string, storage: Storage, now: () =
     const currentTime = now();
     let state: PomodoroState;
 
-    if (normalized.state.status === 'running') {
+    if (isFocusOvertime(normalized.state)) {
+      state = {
+        version: 1,
+        phase: 'break',
+        status: 'waiting',
+        remainingMs: pomodoroDurations.break,
+        endsAt: null,
+        updatedAt: currentTime,
+      };
+    } else if (normalized.state.status === 'running') {
       state = {
         ...normalized.state,
         status: 'paused',

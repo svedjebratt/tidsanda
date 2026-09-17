@@ -38,4 +38,15 @@ describe('timer title', () => {
     );
     expect(getTimerTitle({ ...waitingBreak, status: 'paused' }, true, 42 * 60 + 8)).toBe('05:00 · Break · Paused');
   });
+
+  it('shows focus overtime with a leading minus sign', () => {
+    const overtime = {
+      ...createInitialPomodoroState(),
+      status: 'overtime' as const,
+      remainingMs: -3_000,
+      endsAt: Date.now() - 3_000,
+    };
+
+    expect(getTimerTitle(overtime, false, 0)).toBe('-00:03 · Focus · Overtime');
+  });
 });

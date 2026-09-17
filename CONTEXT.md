@@ -18,3 +18,11 @@ _Avoid_: Time entry, merged entry
 
 **Tag-group total**:
 The sum of the durations of the displayed time entries in a tag group. An entry that spans midnight belongs entirely to the day on which it starts.
+
+**Focus interval**:
+The planned period of active focus in a Pomodoro, before any focus overtime begins.
+_Avoid_: Focus session
+
+**Focus overtime**:
+The elapsed focus time after a focus interval ends and before the person explicitly ends it. Focus overtime is Pomodoro status, not a time entry.
+_Avoid_: Negative time

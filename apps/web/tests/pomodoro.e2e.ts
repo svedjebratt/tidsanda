@@ -53,7 +53,7 @@ test('a user can navigate to, start, pause, and restore a Pomodoro', async ({ pa
   await expect(page).toHaveTitle('Tidsanda');
 });
 
-test('a completed focus period waits for a break and sends one notification', async ({ page }) => {
+test('a completed focus interval counts overtime until the user ends focus', async ({ page }) => {
   await page.addInitScript(() => {
     const notifications: string[] = [];
     Object.defineProperty(window, 'testNotifications', { value: notifications });
@@ -88,13 +88,55 @@ test('a completed focus period waits for a break and sends one notification', as
     window.dispatchEvent(new StorageEvent('storage', { key }));
   });
 
+  await expect(page.getByText('Overtime')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'End Focus' })).toBeVisible();
+  await expect(page.locator('.time')).toHaveText(/^-00:0[1-9]$/);
+  await expect(page).toHaveTitle(/^-00:0[1-9] · Focus · Overtime$/);
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { testNotifications: string[] }).testNotifications))
+    .toEqual(['Focus complete']);
+
+  await page.keyboard.press('Space');
   await expect(page.getByRole('heading', { name: 'Break' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start Break' })).toBeVisible();
   await expect(page.getByText('05:00')).toBeVisible();
   await expect(page).toHaveTitle('05:00 · Break · Ready');
+});
+
+test('reopening an expired focus interval restores overtime without a stale notification', async ({ page }) => {
+  await page.addInitScript(() => {
+    const now = Date.now();
+    localStorage.setItem(
+      'tidsanda:pomodoro:test-account',
+      JSON.stringify({
+        version: 1,
+        phase: 'focus',
+        status: 'running',
+        remainingMs: 25 * 60_000,
+        endsAt: now - 3_000,
+        updatedAt: now - 25 * 60_000 - 3_000,
+      }),
+    );
+
+    const notifications: string[] = [];
+    Object.defineProperty(window, 'testNotifications', { value: notifications });
+    class TestNotification {
+      static permission = 'granted';
+
+      constructor(title: string) {
+        notifications.push(title);
+      }
+    }
+    Object.defineProperty(window, 'Notification', { configurable: true, value: TestNotification });
+  });
+
+  await page.goto('/pomodoro');
+
+  await expect(page.getByText('Overtime')).toBeVisible();
+  await expect(page.locator('.time')).toHaveText(/^-00:\d{2}$/);
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { testNotifications: string[] }).testNotifications))
-    .toEqual(['Focus complete']);
+    .toEqual([]);
 });
 
 test('Pomodoro actions synchronize between tabs', async ({ context, page }) => {

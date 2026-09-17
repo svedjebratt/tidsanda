@@ -39,7 +39,7 @@ describe('Pomodoro timer', () => {
     expect(timer.read()).toMatchObject({ phase: 'focus', status: 'running', remainingMs: 24 * 60_000 });
 
     timer.advance();
-    now += 60_000;
+    now += 60 * 60_000;
     expect(timer.read()).toMatchObject({ phase: 'focus', status: 'paused', remainingMs: 24 * 60_000 });
 
     timer.advance();
@@ -47,18 +47,36 @@ describe('Pomodoro timer', () => {
     expect(timer.read()).toMatchObject({ phase: 'focus', status: 'running', remainingMs: 23 * 60_000 });
   });
 
-  it('waits for the user before starting each next period', () => {
+  it('counts focus overtime until the user ends focus', () => {
+    const storage = createStorage();
+    let now = 1_000;
+    const timer = createPomodoroTimer('account-a', storage, () => now);
+
+    timer.advance();
+    now += 25 * 60_000 + 3_000;
+    expect(timer.update()).toMatchObject({
+      state: { phase: 'focus', status: 'overtime', remainingMs: -3_000 },
+      completedPhase: 'focus',
+    });
+
+    now += 1_000;
+    expect(timer.update()).toMatchObject({
+      state: { phase: 'focus', status: 'overtime', remainingMs: -4_000 },
+      completedPhase: null,
+    });
+
+    timer.advance();
+    expect(timer.read()).toMatchObject({ phase: 'break', status: 'waiting', remainingMs: 5 * 60_000 });
+  });
+
+  it('waits for the user before starting the next focus interval after a break', () => {
     const storage = createStorage();
     let now = 1_000;
     const timer = createPomodoroTimer('account-a', storage, () => now);
 
     timer.advance();
     now += 25 * 60_000;
-    expect(timer.update()).toMatchObject({
-      state: { phase: 'break', status: 'waiting', remainingMs: 5 * 60_000 },
-      completedPhase: 'focus',
-    });
-
+    timer.advance();
     timer.advance();
     now += 5 * 60_000;
     expect(timer.update()).toMatchObject({
@@ -78,6 +96,13 @@ describe('Pomodoro timer', () => {
     expect(createPomodoroTimer('account-b', storage, () => now).read()).toMatchObject({
       status: 'waiting',
       remainingMs: 25 * 60_000,
+    });
+
+    now += 24 * 60_000;
+    expect(createPomodoroTimer('account-a', storage, () => now).read()).toMatchObject({
+      phase: 'focus',
+      status: 'overtime',
+      remainingMs: -30_000,
     });
   });
 

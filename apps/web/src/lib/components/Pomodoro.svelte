@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { pomodoroDurations } from "$lib/pomodoro";
+    import { isFocusOvertime, pomodoroDurations } from "$lib/pomodoro";
     import { pomodoro } from "$lib/stores/pomodoroStore";
     import { formatMilliseconds } from "$lib/timeFormat";
     import { shouldIgnoreShortcut } from "$lib/keyboard";
@@ -8,8 +8,11 @@
     import MenuBar from "./MenuBar.svelte";
 
     let phaseName = $derived($pomodoro.phase === "focus" ? "Focus" : "Break");
+    let focusOvertime = $derived(isFocusOvertime($pomodoro));
     let actionName = $derived(
-        $pomodoro.status === "running"
+        focusOvertime
+            ? "End Focus"
+            : $pomodoro.status === "running"
             ? "Pause"
             : $pomodoro.status === "paused"
               ? "Resume"
@@ -67,7 +70,9 @@
             class:break={$pomodoro.phase === "break"}
         >
             <p class="status">
-                {$pomodoro.status === "paused"
+                {focusOvertime
+                    ? "Overtime"
+                    : $pomodoro.status === "paused"
                     ? "Paused"
                     : $pomodoro.status === "waiting"
                       ? "Ready"

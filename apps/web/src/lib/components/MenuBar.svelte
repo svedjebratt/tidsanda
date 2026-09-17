@@ -2,12 +2,16 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { shouldIgnoreShortcut } from "$lib/keyboard";
+    import { isFocusOvertime } from "$lib/pomodoro";
     import { pomodoro } from "$lib/stores/pomodoroStore";
     import { current } from "$lib/stores/timerStore";
 
     let { active = "timer" } = $props<{
         active?: "timer" | "pomodoro" | "logs" | "user";
     }>();
+    let pomodoroActive = $derived(
+        $pomodoro.status === "running" || isFocusOvertime($pomodoro),
+    );
 
     onMount(() => {
         function listener(e: KeyboardEvent): void {
@@ -46,10 +50,10 @@
     >
     <a href="/pomodoro" class={active === "pomodoro" ? "active" : ""}
         >Pomodoro<span
-            class:running={$pomodoro.status === "running"}
+            class:running={pomodoroActive}
             class="running-indicator"
             aria-hidden="true"
-        ></span>{#if $pomodoro.status === "running"}<span class="sr-only">
+        ></span>{#if pomodoroActive}<span class="sr-only">
                 running</span
             >{/if}</a
     >
