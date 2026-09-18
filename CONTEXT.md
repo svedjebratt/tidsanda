@@ -5,8 +5,12 @@ Tidsanda records periods of work and presents them in ways that make recurring w
 ## Language
 
 **Time entry**:
-A single continuously measured period of work with a start, a stop, and a set of tags.
+A single continuously measured period of work with a start, an optional stop, and a set of tags. A time entry without a stop is active.
 _Avoid_: Session, tag group
+
+**Active time entry**:
+A time entry that has started but has not been stopped. An account has at most one active time entry.
+_Avoid_: Running timer
 
 **Short time entry**:
 A time entry whose duration at stop is less than ten seconds, measured from its current start time.

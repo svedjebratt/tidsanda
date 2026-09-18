@@ -84,7 +84,7 @@ export const handler = async (route: string, account: Account | null, event: API
     } else if (routeParser.parse(/^GET \/api\/time\/active$/)) {
       const active = await getActiveTimeEntry(account.apiKey);
       if (!active) {
-        statusCode = 400;
+        statusCode = 404;
         body = { error: 'no_active_timer' };
       } else {
         body = active;

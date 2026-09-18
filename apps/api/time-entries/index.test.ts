@@ -27,6 +27,17 @@ import { handler } from './index';
 const account = { apiKey: 'test-account', admin: false };
 const event = { body: '{}', queryStringParameters: {} } as APIEvent;
 
+describe('getting the active time entry', () => {
+  it('returns not found when there is no active time entry', async () => {
+    db.getActiveTimeEntry.mockResolvedValue(null);
+
+    const response = await handler('GET /api/time/active', account, event);
+
+    expect(response.statusCode).toBe(404);
+    expect(JSON.parse(response.body)).toEqual({ error: 'no_active_timer' });
+  });
+});
+
 describe('stopping a time entry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
