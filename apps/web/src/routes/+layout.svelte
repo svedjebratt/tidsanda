@@ -7,10 +7,13 @@
 	import { current } from '$lib/stores/timerStore';
 	import { pomodoro } from '$lib/stores/pomodoroStore';
 	import { getTimerTitle } from '$lib/timerTitle';
+	import { assets } from '$app/paths';
+	import { getTimerFavicon } from '$lib/timerFavicon';
 
 	let { children } = $props<{ children: Snippet }>();
 	const elapsed = current.elapsed;
 	let title = $derived(getTimerTitle($pomodoro, $current !== null, $elapsed));
+	let favicon = $derived(`${assets}/${getTimerFavicon($pomodoro, $current !== null)}`);
 
 	function notifyCompletion(update: ReturnType<typeof pomodoro.update>) {
 		if (
@@ -83,6 +86,7 @@
 
 <svelte:head>
 	<title>{title}</title>
+	<link rel="icon" href={favicon} />
 </svelte:head>
 
 {@render children()}

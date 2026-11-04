@@ -27,6 +27,7 @@ test('a user can navigate to, start, pause, and restore a Pomodoro', async ({ pa
   const pomodoroLink = page.getByRole('link', { name: 'Pomodoro', exact: true });
   await expect(pomodoroLink.locator('.running-indicator')).toBeHidden();
   await expect(page).toHaveTitle('Tidsanda');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /\/favicon\.png$/);
 
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
@@ -34,10 +35,12 @@ test('a user can navigate to, start, pause, and restore a Pomodoro', async ({ pa
     page.getByRole('link', { name: 'Pomodoro running', exact: true }).locator('.running-indicator'),
   ).toBeVisible();
   await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Running$/);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon-active.svg');
   await page.keyboard.press('Space');
   await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
   await expect(pomodoroLink.locator('.running-indicator')).toBeHidden();
   await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Paused$/);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /\/favicon\.png$/);
 
   await page.getByRole('link', { name: 'History' }).click();
   await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Paused$/);
@@ -92,6 +95,7 @@ test('a completed focus interval counts overtime until the user ends focus', asy
   await expect(page.getByRole('button', { name: 'End Focus' })).toBeVisible();
   await expect(page.locator('.time')).toHaveText(/^-00:0[1-9]$/);
   await expect(page).toHaveTitle(/^-00:0[1-9] · Focus · Overtime$/);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon-active.svg');
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { testNotifications: string[] }).testNotifications))
     .toEqual(['Focus complete']);
@@ -101,6 +105,21 @@ test('a completed focus interval counts overtime until the user ends focus', asy
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await expect(page.getByText('05:00')).toBeVisible();
   await expect(page).toHaveTitle(/^\d{2}:\d{2} · Break · Running$/);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon-active.svg');
+});
+
+test('a paused Pomodoro does not hide an active time entry in the favicon', async ({ page }) => {
+  await page.route('**/api/time/active', async (route) => {
+    await route.fulfill({ json: { account: 'test-account', id: 42, start: Date.now(), tags: [] } });
+  });
+  await page.goto('/pomodoro');
+  await page.getByRole('button', { name: 'Start Focus' }).click();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+
+  await expect(page).toHaveTitle(/^\d{2}:\d{2} · Focus · Paused$/);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon-active.svg');
+  await page.getByRole('link', { name: 'History' }).click();
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon-active.svg');
 });
 
 test('reopening an expired focus interval restores overtime without a stale notification', async ({ page }) => {
@@ -149,6 +168,7 @@ test('Pomodoro actions synchronize between tabs', async ({ context, page }) => {
   await page.getByRole('button', { name: 'Start Focus' }).click();
 
   await expect(secondPage.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(secondPage.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon-active.svg');
 });
 
 test('the Pomodoro controls and navigation fit a narrow screen', async ({ page }) => {
