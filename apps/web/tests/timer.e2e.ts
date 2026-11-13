@@ -124,6 +124,102 @@ test('navigating back to an active timer does not clear its tags', async ({ page
   expect(updates).toEqual([]);
 });
 
+test('polling synchronizes the selected tags of the active time entry without saving them back', async ({ page }) => {
+  let activeEntry: { account: string; id: number; start: number; tags: string[] } | null = {
+    account: 'test-account',
+    id: 42,
+    start: Date.now(),
+    tags: ['existing-tag'],
+  };
+  const updates: unknown[] = [];
+  await page.route('**/api/time/active', (route) =>
+    route.fulfill(activeEntry ? { json: activeEntry } : { status: 404, json: { error: 'No active timer' } }),
+  );
+  await page.route('**/api/time/*', async (route) => {
+    if (route.request().method() === 'PUT') {
+      updates.push(route.request().postDataJSON());
+      await route.fulfill({ json: activeEntry });
+    } else {
+      await route.fallback();
+    }
+  });
+  await page.clock.install();
+  await page.goto('/timer');
+  const selectedTags = page.locator('.edit-tags');
+  await expect(selectedTags.getByText('existing-tag', { exact: true })).toBeVisible();
+
+  activeEntry = { ...activeEntry, tags: ['remote-tag'] };
+  await page.clock.fastForward(60_000);
+
+  await expect(selectedTags.getByText('remote-tag', { exact: true })).toBeVisible();
+  await expect(selectedTags.getByText('existing-tag', { exact: true })).toBeHidden();
+
+  activeEntry = { ...activeEntry, tags: [] };
+  await page.clock.fastForward(60_000);
+  await expect(page.locator('#TagInput')).toHaveAttribute('placeholder', 'Set tags');
+  await expect(selectedTags.getByText('remote-tag', { exact: true })).toBeHidden();
+
+  activeEntry = { ...activeEntry, id: 43, tags: ['next-entry-tag'] };
+  await page.clock.fastForward(60_000);
+  await expect(selectedTags.getByText('next-entry-tag', { exact: true })).toBeVisible();
+
+  activeEntry = null;
+  await page.clock.fastForward(60_000);
+  await expect(page).toHaveTitle('Tidsanda');
+  await expect(selectedTags.getByText('next-entry-tag', { exact: true })).toBeVisible();
+  expect(updates).toEqual([]);
+
+  await page.route('**/api/time/start', (route) =>
+    route.fulfill({
+      json: { account: 'test-account', id: 44, start: Date.now(), tags: ['next-entry-tag'] },
+    }),
+  );
+  const startRequest = page.waitForRequest('**/api/time/start');
+  await page.locator('.timer button').click();
+  expect((await startRequest).postDataJSON()).toEqual({ tags: ['next-entry-tag'] });
+});
+
+test('queued edits stay with their time entry when polling finds a new active time entry', async ({ page }) => {
+  const originalEntry = {
+    account: 'test-account',
+    id: 42,
+    start: Date.now(),
+    tags: ['existing-tag'],
+  };
+  let activeEntry = originalEntry;
+  const updates: string[] = [];
+  let releaseUpdate!: () => void;
+  const updateGate = new Promise<void>((resolve) => {
+    releaseUpdate = resolve;
+  });
+  await page.route('**/api/time/active', (route) => route.fulfill({ json: activeEntry }));
+  await page.route('**/api/time/stop', (route) => route.fulfill({ json: { discarded: true } }));
+  await page.route('**/api/time/*', async (route) => {
+    const request = route.request();
+    if (request.method() !== 'PUT') return route.fallback();
+    updates.push(new URL(request.url()).pathname);
+    if (updates.length === 1) await updateGate;
+    await route.fulfill({ json: { ...originalEntry, ...request.postDataJSON() } });
+  });
+  await page.clock.install();
+  await page.goto('/timer');
+  await expect(page.locator('#TagInput')).toBeEnabled();
+  await page.getByRole('button', { name: 'Move start time back' }).click();
+  await expect.poll(() => updates.length).toBe(1);
+  await page.getByRole('button', { name: 'Move start time back' }).click();
+
+  activeEntry = { ...originalEntry, id: 43, tags: ['next-entry-tag'] };
+  await page.clock.fastForward(60_000);
+  await expect(page.locator('.edit-tags').getByText('next-entry-tag', { exact: true })).toBeVisible();
+  releaseUpdate();
+  // Stopping waits for the whole edit queue, so the assertions observe all queued edits.
+  await page.locator('.play-control button').last().click();
+  await expect(page).toHaveTitle('Tidsanda');
+
+  expect(updates).toEqual(['/api/time/42']);
+  await expect(page.locator('.edit-tags').getByText('next-entry-tag', { exact: true })).toBeVisible();
+});
+
 test('space starts and stops the timer while typing and the old shortcut do not', async ({ page }) => {
   const commands: string[] = [];
   const activeTimer = {

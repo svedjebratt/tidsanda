@@ -19,6 +19,9 @@
 
 	let tags = $state<string[]>([]);
 	let selectedTags = $state<string[]>([]);
+	$effect(() => {
+		if ($current) selectedTags = $current.tags;
+	});
 	let tagFilter = $state('');
 	let logs = $state<TimeEntry[]>([]);
 	let tagInput = $state<HTMLInputElement | null>(null);
@@ -56,12 +59,7 @@
 	}
 
 	async function init() {
-		const active = await current.refresh();
-		if (active) {
-			selectedTags = active.tags ?? [];
-		} else {
-			console.log('no active clock');
-		}
+		await current.refresh();
 		activeTimerLoaded = true;
 		await updateTimerDetails();
 	}
@@ -79,10 +77,12 @@
 	});
 
 	function queueTimerUpdate(update: (timeEntry: TimeEntry) => Promise<TimeEntry>, errorMessage: string) {
+		const entryId = $current?.id;
 		pendingTimerUpdate = pendingTimerUpdate.then(async () => {
-			if (!$current) return;
+			if (!$current || $current.id !== entryId) return;
 			try {
-				current.set(await update($current));
+				const updated = await update($current);
+				if ($current?.id === entryId) current.set(updated);
 			} catch {
 				timerUpdateFailed = true;
 				console.log(errorMessage);
